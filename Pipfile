@@ -7,6 +7,7 @@ name = "pypi"
 pynput = "*"
 pillow = "*"
 pystray = "*"
+pandas = "*"
 
 [dev-packages]
 
@@ -15,3 +16,4 @@ python_version = "3.11"
 
 [scripts]
 start = "python scripts/window_tracker.py"
+start2 = "python scripts/window_tracker_2.py"  # New command for your refactored version
