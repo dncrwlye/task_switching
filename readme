@@ -1,6 +1,8 @@
 TaskTracker: Application Switching Monitor for macOS
 
-I made this productivity tool to track my application switching patterns. The goal is to improve focus awareness. This utility runs in the system tray and analyzes my app usage patterns over time.
+05/14/25. 
+I wanted to know how often I am task switching and to build some trigger to open flow when I'm loosing focus. So I made this tool to track my application switching patterns. The goal is to improve focus awareness. This utility runs in the system tray and analyzes my app usage patterns over time.
+
 
 Purpose & Design
 I built TaskTracker to help identify distracting patterns in my workflow. I also did it to improve my use of python classes which I never normal use. 
