@@ -1,0 +1,33 @@
+TaskTracker: Application Switching Monitor for macOS
+
+I made this productivity tool to track my application switching patterns. The goal is to improve focus awareness. This utility runs in the system tray and analyzes my app usage patterns over time.
+
+Purpose & Design
+I built TaskTracker to help identify distracting patterns in my workflow. I also did it to improve my use of python classes which I never normal use. 
+
+The program:
+
+Monitors active application changes on macOS
+Records transition data and session durations
+Compares current behavior against my historical patterns
+Triggers Flow app to open when switching exceeds normal thresholds
+
+Architecture
+TaskTracker has a couple classes with basic roles:
+
+WindowMonitor: Detects the currently active application
+TaskTracker: Records and stores application switching data
+StatsStorage: Calculates and maintains usage statistics
+TaskSwitchAnalyzer: Determines when switching patterns are excessive
+TrackingService: Coordinates all components and manages the monitoring thread
+
+Technical Requirements
+
+macOS
+Python 3.11+
+Flow app (for interventions)
+Dependencies: pynput, pillow, pystray, pandas
+
+Setup Notes
+The application can be configured to start automatically at login using a LaunchAgent. The plist file must specify the correct working directory and environment to ensure pipenv can locate the Pipfile.
+Data is stored in ~/task_switch/data/ with separate files for raw switching data and calculated statistics.
