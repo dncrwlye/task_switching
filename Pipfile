@@ -8,7 +8,6 @@ pynput = "*"
 pillow = "*"
 pystray = "*"
 pandas = "*"
-task-tracker = {file = ".", editable = true}
 
 [dev-packages]
 

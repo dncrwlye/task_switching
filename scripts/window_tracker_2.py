@@ -8,19 +8,28 @@ import pystray
 from pystray import MenuItem as item
 from PIL import Image, ImageDraw
 import pandas as pd
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from color_change import set_desktop_color
 
 #this is now the main controller class
 
 class TrackingService:
-    def __init__(self, task_tracker, window_monitor, switch_analyzer, flow_launcher=None):
+    def __init__(self, task_tracker, window_monitor, switch_analyzer, flow_launcher=None, desktop_color=None):
         self.task_tracker = task_tracker
         self.window_monitor = window_monitor
         self.switch_analyzer = switch_analyzer
         self.flow_launcher = flow_launcher
+        self.desktop_color = desktop_color
         self.running = False
         self.current_app = None
         self.last_switch_time = None
         self.tracking_thread = None
+        
+        # Color update counter
+        self.color_update_interval = 0
     
     def tracking_loop(self):
         """Main tracking loop that runs in the background"""
@@ -29,6 +38,7 @@ class TrackingService:
         print(f"Starting tracking. Current app: {self.current_app}")
         
         check_interval = 0
+        self.color_update_interval = 0
         
         while self.running:
             time.sleep(1)  # Check every second
@@ -36,14 +46,25 @@ class TrackingService:
             if new_app != self.current_app:
                 self.task_tracker.record_app_switch(self.current_app, new_app)
                 self.current_app = new_app
-            # Check for excessive switching every 10 seconds
-            # This would be moved to a separate SwitchAnalyzer class in a full refactor
+            
+            # Increment counters
             check_interval += 1
+            self.color_update_interval += 1
+            
+            # Check for excessive switching every 10 seconds (for Flow app)
             if check_interval >= 10:
                 excessive = self.switch_analyzer.check_excessive_task_switching()
+                
+                # Launch Flow app only in extreme cases
                 if excessive and self.flow_launcher:
                     self.flow_launcher.launch_flow_app()
+                
                 check_interval = 0
+            
+            # Update desktop color more frequently (every 5 seconds)
+            if self.desktop_color and self.color_update_interval >= self.desktop_color.update_interval:
+                self.desktop_color.update_color_based_on_behavior()
+                self.color_update_interval = 0
     
     def start(self):
         """Start the tracking process"""
@@ -175,6 +196,7 @@ class TaskSwitchAnalyzer:
     
     # Calculate average duration of recent app sessions
         recent_durations = [int(switch[4]) for switch in recent_switches if len(switch) > 4 and switch[4]]
+        #print(recent_durations)
         if not recent_durations:
             return False
         
@@ -207,8 +229,101 @@ class LaunchFlow:
             # For macOS
             subprocess.run(["open", "-a", "Flow"])
             print("Launched Flow app to help you focus")
+            #set_desktop_color(255, 0, 0)
         except Exception as e:
             print(f"Error launching Flow app: {e}")
+
+class DesktopColor:
+    def __init__(self, switch_analyzer, stats_storage):
+        self.switch_analyzer = switch_analyzer
+        self.stats_storage = stats_storage
+        
+        # Define color range (from calm to intense)
+        self.calm_color = (0, 100, 255)  # Blue (calm)
+        self.warning_color = (255, 0, 0)  # Red (excessive switching)
+        
+        # How often to update the color (in seconds)
+        self.update_interval = 5
+        
+    def calculate_color_intensity(self, recent_duration, historical_mean):
+        """
+        Calculate color intensity based on how current behavior 
+        compares to historical average.
+        
+        Returns a value between 0.0 (calm) and 1.0 (excessive switching)
+        """
+        if historical_mean <= 0:
+            return 0.0
+            
+        # Calculate ratio of recent to historical duration
+        # Lower ratio means more switching (shorter durations)
+        ratio = recent_duration / historical_mean
+        
+        # Invert and clamp the ratio to get intensity
+        # 1.0 means recent durations are 0% of historical (extreme switching)
+        # 0.0 means recent durations are 100% or more of historical (normal or better)
+        intensity = max(0.0, min(1.0, 1.0 - ratio))
+        
+        return intensity
+        
+    def interpolate_color(self, intensity):
+        """
+        Interpolate between calm and warning colors based on intensity.
+        
+        Args:
+            intensity: Value between 0.0 (calm) and 1.0 (warning)
+            
+        Returns:
+            Tuple of RGB values for the interpolated color
+        """
+        r = int(self.calm_color[0] + (self.warning_color[0] - self.calm_color[0]) * intensity)
+        g = int(self.calm_color[1] + (self.warning_color[1] - self.calm_color[1]) * intensity)
+        b = int(self.calm_color[2] + (self.warning_color[2] - self.calm_color[2]) * intensity)
+        
+        # Ensure values are in valid RGB range
+        r = max(0, min(255, r))
+        g = max(0, min(255, g))
+        b = max(0, min(255, b))
+        
+        return (r, g, b)
+    
+    def update_color_based_on_behavior(self):
+        """Updates desktop color based on user switching behavior continuously"""
+        try:
+            # Get recent switches (last minute)
+            recent_switches = self.switch_analyzer.read_recent_switches(minutes=1)
+            
+            # If no recent switches, just return
+            if not recent_switches or len(recent_switches) < 2:
+                return
+            
+            # Calculate average duration of recent app sessions
+            recent_durations = [int(switch[4]) for switch in recent_switches if len(switch) > 4 and switch[4]]
+            if not recent_durations:
+                return
+                
+            recent_avg_duration = sum(recent_durations) / len(recent_durations)
+            
+            # Get historical statistics
+            historical_stats = self.stats_storage.calculate_statistics()
+            
+            if historical_stats and 'mean' in historical_stats:
+                historical_mean_duration = historical_stats['mean']
+                
+                # Calculate how intense the color should be
+                intensity = self.calculate_color_intensity(recent_avg_duration, historical_mean_duration)
+                
+                # Interpolate between calm and warning colors
+                color = self.interpolate_color(intensity)
+                
+                # Set the desktop color
+                set_desktop_color(*color)
+                
+                print(f"Updated desktop color to {color} (intensity: {intensity:.2f})")
+                print(f"Recent avg duration: {recent_avg_duration:.1f}s, Historical mean: {historical_mean_duration:.1f}s")
+                
+        except Exception as e:
+            print(f"Error updating desktop color: {e}")
 
 class StatsStorage:
     def __init__(self, base_dir="~/task_switch"):
@@ -319,13 +434,15 @@ if __name__ == "__main__":
     stats_storage = StatsStorage()
     switch_analyzer = TaskSwitchAnalyzer(task_tracker, stats_storage)
     flow_launcher = LaunchFlow()
+    desktop_color = DesktopColor(switch_analyzer, stats_storage)  # Pass stats_storage
     
     # Create the tracking service that coordinates everything
     tracking_service = TrackingService(
         task_tracker=task_tracker,
         window_monitor=window_monitor,
         switch_analyzer=switch_analyzer,
-        flow_launcher=flow_launcher
+        flow_launcher=flow_launcher,
+        desktop_color=desktop_color
     )
     
     # Set up the system tray icon
