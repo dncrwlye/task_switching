@@ -1,0 +1,7 @@
+Metadata-Version: 2.2
+Name: task_tracker
+Version: 0.1
+Requires-Dist: pandas
+Requires-Dist: pystray
+Requires-Dist: pillow
+Dynamic: requires-dist
