@@ -27,6 +27,11 @@ class DesktopColor:
         # Calculate ratio of recent to historical duration
         # Lower ratio means more switching (shorter durations)
         ratio = recent_duration / historical_mean       
+        
+        if ratio <=1:
+            ratio = ratio^2
+        if ratio > 1:
+            ratio = ratio
         # Invert and clamp the ratio to get intensity
         # 1.0 means recent durations are 0% of historical (extreme switching)
         # 0.0 means recent durations are 100% or more of historical (normal or better)
@@ -71,10 +76,17 @@ class DesktopColor:
                 return            
             recent_avg_duration_2 = sum(recent_durations) / len(recent_durations)      
             recent_avg_duration = 0
-            i = 1
-            for durations in recent_durations:
-                recent_avg_duration = recent_avg_duration + recent_durations[-i] * i
-            recent_avg_duration = recent_avg_duration/15       
+            total_weight = 0
+
+            # Process durations, starting from most recent
+            for i, duration in enumerate(reversed(recent_durations)):
+                weight = len(recent_durations) - i  # Most recent gets highest weight
+                recent_avg_duration += duration * weight
+                total_weight += weight
+
+                # Calculate weighted average
+            recent_avg_duration = recent_avg_duration / total_weight if total_weight > 0 else 0
+
             # Get historical statistics
             historical_stats = self.stats_storage.calculate_statistics()          
             if historical_stats and 'mean' in historical_stats:
