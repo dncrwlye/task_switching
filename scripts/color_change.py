@@ -29,7 +29,7 @@ class DesktopColor:
         ratio = recent_duration / historical_mean       
         
         if ratio <=1:
-            ratio = ratio^2
+            ratio = ratio ** 2
         if ratio > 1:
             ratio = ratio
         # Invert and clamp the ratio to get intensity
