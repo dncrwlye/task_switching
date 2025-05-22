@@ -48,7 +48,8 @@ class DesktopColor:
         #so, as intensity increases, so will the color change. makes sense
         #as the ratio gets large, the intensity gets smaller, so you want a large ratio
         #essentially, you want the difference between the recent averages and the historical averages to be equivelent 
-        #now, i think it's changing too lfast, it's a little ridiculous
+        #now, i think it's changing too fast, it is too sensitive 
+        
         r = int(self.calm_color[0] + (self.warning_color[0] - self.calm_color[0]) * intensity) 
         g = int(self.calm_color[1] + (self.warning_color[1] - self.calm_color[1]) * intensity)
         b = int(self.calm_color[2] + (self.warning_color[2] - self.calm_color[2]) * intensity)
@@ -78,15 +79,12 @@ class DesktopColor:
             recent_avg_duration = 0
             total_weight = 0
 
-            # Process durations, starting from most recent
-            for i, duration in enumerate(reversed(recent_durations)):
-                weight = len(recent_durations) - i  # Most recent gets highest weight
-                recent_avg_duration += duration * weight
-                total_weight += weight
-
-                # Calculate weighted average
+            for i in (list(range(0,len(recent_durations)))):
+                recent_avg_duration = recent_avg_duration + recent_durations[i] * (i+1) #weight by i + 1 (1 to 5, in practice)
+                total_weight = total_weight + (1+i)
+            
             recent_avg_duration = recent_avg_duration / total_weight if total_weight > 0 else 0
-
+         
             # Get historical statistics
             historical_stats = self.stats_storage.calculate_statistics()          
             if historical_stats and 'mean' in historical_stats:
